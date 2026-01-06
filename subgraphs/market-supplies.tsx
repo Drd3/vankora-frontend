@@ -24,6 +24,15 @@ export type MarketSupply = {
       imageUrl: string;
       decimals: number;
     };
+    userState: {
+      balance: {
+        amount: {
+          raw: string;
+          value: string;
+          decimals: number;
+        };
+      };
+    };
   }>;
 };
 
@@ -62,6 +71,15 @@ const MARKET_SUPPLIES_QUERY = `
           symbol
           imageUrl
           decimals
+        }
+        userState {
+          balance {
+            amount {
+              raw
+              value
+              decimals
+            }
+          }
         }
       }
     }

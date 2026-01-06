@@ -20,7 +20,15 @@ const SupplyProccess = () => {
 
     
     return(
-        <Wizard steps={steps} showProgress={false} className="w-full"/>
+        <Wizard 
+            steps={steps} 
+            showProgress={false} 
+            className="w-full"
+            onComplete={(data) => console.log(data)}
+            hideTitle={true}
+            withoutCard={true}
+            onStepChange={(stepIndex, data) => console.log(stepIndex, data)}
+        />
             
     )
 }
