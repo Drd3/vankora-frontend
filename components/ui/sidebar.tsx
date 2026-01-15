@@ -13,8 +13,8 @@ export function ExpandableSidebar() {
   ]
 
   const protocolItems = [
-    { label: "Vankora Protocol", href: "#" },
-    { label: "Aave Protocol", href: "#" },
+    { label: "Vankora Protocol", href: "/vankora-protocol" },
+    { label: "Aave Protocol", href: "/aave-protocol" },
   ]
 
   return (

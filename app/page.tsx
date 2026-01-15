@@ -4,7 +4,9 @@ import { AaveWrapper } from "@/components/aave";
 
 function App() {
   return (
-    <AaveWrapper />
+    <div>
+      <h1 className="text-xl font-bold">BIENVENIDO A Vankora</h1>
+    </div>
   );
 }
 

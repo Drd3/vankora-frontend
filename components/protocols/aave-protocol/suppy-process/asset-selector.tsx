@@ -6,6 +6,9 @@ import { MarketSupply } from "@/subgraphs/market-supplies"
 import SupplyCard from "@/components/ui/asset-cards/supply-card"
 import { Switch } from "@/components/ui/switch"
 import { useWizardContext } from "@/components/ui/wizard"
+import { Skeleton } from "@/components/ui/skeleton"
+import { evmAddress, chainId } from "@aave/react";
+
 
 const marketSuppliesRequest = {
   request: {
@@ -21,18 +24,23 @@ const marketSuppliesRequest = {
 };
 
 const AssetSelector = () => {
+    const [isLoading, setIsLoading] = useState(true);
     const [assets, setAssets] = useState<MarketSupply[]>([])
     const [showbalance0, setShowBalance0] = useState(false)
     const { goToNextStep, setData } = useWizardContext()
 
+
     useEffect(() => {
         const fetchAssetsData = async () => {
             try {
+                setIsLoading(true);
                 const result = await fetchMarketSupplies(marketSuppliesRequest, "https://api.v3.aave.com/graphql");
                 console.log('Market supplies data:', result);
                 setAssets(result)
             } catch (error) {
                 console.error('Error fetching market supplies:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         
@@ -94,7 +102,13 @@ const AssetSelector = () => {
                     <p className="text-sm text-gray-600 max-w-[600px]">Deposita tu dinero en un activo para usarlo como respaldo o agrega más fondos a uno que ya tengas; mientras tu dinero está depositado, puede generar ganancias y te permite acceder a las funciones básicas de la plataforma DeFi.</p>
                 </div>
                 <div className="grid grid-cols-[1fr_1fr_1fr] gap-4">
-                    {filteredReserves.map((reserve, index) => (
+                    {isLoading ? (
+                        <>
+                            <Skeleton className="h-[178px] w-full" />
+                            <Skeleton className="h-[178px] w-full" />
+                            <Skeleton className="h-[178px] w-full" />
+                        </>
+                    ) : filteredReserves.map((reserve, index) => (
                         <SupplyCard 
                             key={index} 
                             assetName={reserve.underlyingToken.name} 

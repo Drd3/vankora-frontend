@@ -8,29 +8,10 @@ import BorrowList from "./borrow-list";
 import AaveOverview from "./aave-overview";
 import HealthFactor from "./health-factor";
 import { fetchUserMarketState, UserMarketState, UserMarketStateRequest } from "@/subgraphs/market-user-state";
-
-const request: UserMarketStateRequest = {
-    chainId: 8453,
-    market: "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
-    user: "0xC69A8ACfd379fadc048e40C0075eCf85E395813d"
-}
+import { useAave } from "@/contexts/aave-context";
 
 const AaveProtocol = () => {
-    const [userState, setUserState] = useState<UserMarketState | null>()
-    
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const result = await fetchUserMarketState(request, "https://api.v3.aave.com/graphql");
-                setUserState(result)
-            } catch (error) {
-                console.log(error)
-            }
-        } 
-
-        fetchUserData();
-        
-    },[])
+    const { userState, isLoading, error } = useAave();
 
     return (
     <div className="max-w-[1000px] w-full mx-auto space-y-6 ">

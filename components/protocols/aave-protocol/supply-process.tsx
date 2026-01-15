@@ -12,6 +12,11 @@ const steps: WizardStep[] = [
         id: "form",
         title: "asset form",
         content: <SupplyForm/>
+    },
+    {
+        id: "confirmation",
+        title: "confirmation",
+        content: <div>confirmation</div>
     }
 ]
 

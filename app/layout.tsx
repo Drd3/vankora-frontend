@@ -5,7 +5,8 @@ import "./globals.css";
 import { ExpandableSidebar } from "@/components/ui/sidebar";
 import { Web3Provider } from "@/components/providers/web3-provider";
 import Navbar from "@/components/ui/navbar";
-
+import { client } from "@/client";
+import Aave from "@/components/providers/aave-provider";
 
 
 const albertSans = Albert_Sans({
@@ -30,15 +31,17 @@ export default function RootLayout({
         <body
           className={`${albertSans.variable} ${albertSans.className} font-albert-sans antialiased w-full`}
         >
-          <Web3Provider>
-            <div className="w-full">
-              <Navbar />
-              <ExpandableSidebar/>
-              <div className="pl-20 w-full">
-                {children}
-              </div>
-            </div>
-          </Web3Provider>
+            <Aave>
+              <Web3Provider>
+                <div className="w-full">
+                  <Navbar />
+                  <ExpandableSidebar/>
+                  <div className="pl-20 w-full">
+                    {children}
+                  </div>
+                </div>
+              </Web3Provider>
+            </Aave>
         </body>
     </html>
   );

@@ -131,6 +131,9 @@ const SupplyList = ({classname}: props) => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-transparent border-0 shadow-none w-[fit-content]">
+                    <DialogHeader className="hidden">
+                        <DialogTitle>Depositar</DialogTitle>
+                    </DialogHeader>
                     <SupplyProcess />
                 </DialogContent>
               </Dialog>
