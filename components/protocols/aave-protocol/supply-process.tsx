@@ -1,6 +1,7 @@
 import { Wizard, WizardStep } from "@/components/ui/wizard"
 import AssetSelector from "./suppy-process/asset-selector"
 import SupplyForm from "./suppy-process/supply-form"
+import AssetConfirmationProcess from "./suppy-process/asset-confirmation-process"
 
 const steps: WizardStep[] = [
     {
@@ -16,7 +17,7 @@ const steps: WizardStep[] = [
     {
         id: "confirmation",
         title: "confirmation",
-        content: <div>confirmation</div>
+        content: <AssetConfirmationProcess/>
     }
 ]
 

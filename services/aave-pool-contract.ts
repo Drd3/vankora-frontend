@@ -7,6 +7,35 @@ import ADDRESS_PROVIDER_ABI from "@/abi/address-provider-abi.json"
 
 type Network = "ethereum" | "polygon" | "base"
 
+export type TxState = "WaitingForConfirmation" | "Pending" | "Finished" | "Error"
+
+const logError = (err: any, action: string) => {
+  console.error(`Error during ${action}:`, err)
+}
+
+async function handleTx(
+  txPromise: Promise<any>,
+  action: string,
+  onStateChange?: (action: string, state: TxState, info?: string) => void
+): Promise<any> {
+  try {
+    onStateChange?.(action, "WaitingForConfirmation", `${action}: waiting for wallet signature...`)
+    const tx = await txPromise
+    onStateChange?.(action, "Pending", `${action}: transaction sent. Hash: ${tx.hash}`)
+    const receipt = await tx.wait()
+    if (receipt?.status !== 1) {
+      throw new Error(`${action} transaction reverted on-chain`)
+    }
+    console.log("receipt", receipt)
+    onStateChange?.(action, "Finished", `${action}: confirmed in block ${receipt.blockNumber}`)
+    return tx
+  } catch (err: any) {
+    logError(err, action)
+    onStateChange?.(action, "Error", err?.reason || err?.message || "Unknown error")
+    throw (err?.reason || err?.data || err?.message || "Unknown error")
+  }
+}
+
 // Token addresses by network and symbol
 const TOKEN_ADDRESSES: Record<Network, Record<string, string>> = {
   base: {
@@ -69,22 +98,29 @@ export const ensureApprove = async ({
   spender,
   amount,
   signer,
+  onStateChange,
 }: {
   token: string
   owner: string
   spender: string
   amount: bigint
   signer: Signer
+  onStateChange?: (action: string, state: TxState, info?: string) => void
 }): Promise<void> => {
   const erc20 = new Contract(token, ERC20_ABI, signer)
   try {
     const allowance = await erc20.allowance(owner, spender)
     if (allowance < amount) {
-      const tx = await erc20.approve(spender, amount)
-      await tx.wait()
+      await handleTx(
+        erc20.approve(spender, amount),
+        "Approve",
+        onStateChange
+      )
+    } else {
+      onStateChange?.("Approve", "Finished", "Approve: already sufficient allowance")
     }
-  } catch (error) {
-    throw new Error(`Approval failed: ${error}`)
+  } catch (error: any) {
+    throw new Error(`Approval failed: ${error?.message || error}`)
   }
 }
 
@@ -94,18 +130,14 @@ export const supply = async ({
   asset,
   amount,
   network,
-  onApproving,
-  onApproved,
-  onSupplying,
+  onStateChange,
 }: {
   signer: Signer
   user: string
   asset: string
   amount: string
   network: Network
-  onApproving?: () => void
-  onApproved?: () => void
-  onSupplying?: (txHash: string) => void
+  onStateChange?: (action: string, state: TxState, info?: string) => void
 }): Promise<SupplyResult> => {
   // Validaciones
   if (!signer) throw new Error("Signer is required")
@@ -118,7 +150,6 @@ export const supply = async ({
     const pool = await getPool(signer, network)
     const poolAddress = await pool.getAddress()
 
-
     // Get the correct token address (handles USDC and EURC specifically)
     const tokenAddress = getTokenAddress(asset, '', network)
     
@@ -130,22 +161,23 @@ export const supply = async ({
 
     const amountInWei = parseUnits(amount, decimals)
 
-    // Aprobar tokens
-    onApproving?.()
+    // Aprobar tokens (si es necesario) usando el manejador de estados
     await ensureApprove({
       token: asset,
       owner: user,
       spender: poolAddress,
       amount: amountInWei,
       signer,
+      onStateChange,
     })
-    onApproved?.()
 
-    // Ejecutar supply
-    const tx = await pool.supply(asset, amountInWei, user, 0)
-    onSupplying?.(tx.hash)
+    // Ejecutar supply usando el manejador de estados
+    const tx = await handleTx(
+      pool.supply(asset, amountInWei, user, 0),
+      "Supply",
+      onStateChange
+    )
 
-    // Esperar confirmación
     const receipt = await tx.wait()
 
     return {

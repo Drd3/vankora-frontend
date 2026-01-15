@@ -36,12 +36,15 @@ export function AmountInput({
     if (!isNaN(numericValue)) {
       const exceedsMax = maxValue !== undefined && numericValue > maxValue
       setIsOverMax(exceedsMax)
-      
+
       if (onChange) {
         onChange(numericValue)
       }
     } else {
       setIsOverMax(false)
+      if (onChange) {
+        onChange(0)
+      }
     }
   }
 
