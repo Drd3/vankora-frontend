@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../card"
 import { Button } from "../button"
+import { formatTokenBalance } from "@/lib/utils"
 
 interface SupplyCardProps {
     assetName: string
@@ -32,7 +33,7 @@ const SupplyCard = ({ assetName, assetImage, assetSymbol, apy, balance, onAssetS
             <CardContent className="px-4 space-y-2">
                 <div className="flex items-center justify-between">
                     <div className="text-sm">Tu balance {assetSymbol}: </div>
-                    <div className="text-sm font-semibold">{balance}</div>
+                    <div className="text-sm font-semibold">${formatTokenBalance(parseFloat(balance))}</div>
                 </div>
                 <Button 
                     variant="default" 

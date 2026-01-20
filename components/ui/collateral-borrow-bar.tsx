@@ -1,5 +1,6 @@
 import { Info } from "lucide-react"
 import { InfoButton } from "./info-button"
+import { formatTokenBalance } from "@/lib/utils"
 
 interface LoanProgressBarsProps {
   collateralAmount: number
@@ -31,7 +32,7 @@ export function LoanProgressBars({
             />
             </div>
             <div className="text-xl font-bold">
-            ${collateralAmount.toFixed(2)} {collateralCurrency}
+            ${formatTokenBalance(collateralAmount)} {collateralCurrency}
             </div>
         </div>
 
@@ -64,7 +65,7 @@ export function LoanProgressBars({
             />
             </div>
             <div className="text-xl font-bold">
-            ${loanAmount.toLocaleString()} {loanCurrency}
+            ${formatTokenBalance(loanAmount)} {loanCurrency}
             </div>
         </div>
         </div>

@@ -11,7 +11,7 @@ import { supply, TxState, withdraw } from "@/services/aave-pool-contract";
 import { useAave } from "@/contexts/aave-context"
 import { fetchUsdExchangeRates } from "@/subgraphs/aave-exchange-rates"
 import { AAVE_V3_ADDRESSES } from "@/addresses/addresses"
-import { convertCurrency } from "@/lib/utils"
+import { convertCurrency, formatTokenBalance } from "@/lib/utils"
 import { UserSupply } from "@/types/aave"
 import CollateralPrediction from "@/components/ui/prediction-cards/collateral-prediction"
 
@@ -158,7 +158,7 @@ const WithdrawForm = ({asset}: {asset: UserSupply}) => {
                         <div className="flex items-center justify-between">
                             <label className="text-sm">Selecciona la cantidad</label>
                             <div className="text-sm">
-                                Tu colateral total: {parseFloat(asset.balance.amount.value).toFixed(3)} {asset.currency.symbol}
+                                Tu colateral total: {formatTokenBalance(parseFloat(asset.balance.amount.value))} {asset.currency.symbol}
                             </div>
                         </div>
                         <AmountInput

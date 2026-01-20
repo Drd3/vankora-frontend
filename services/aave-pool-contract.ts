@@ -421,3 +421,119 @@ export const withdraw = async ({
     throw new Error(`Withdraw failed: ${error.message || error}`)
   }
 }
+
+interface RepayResult {
+  success: boolean
+  transactionHash: string
+  blockNumber: number
+  gasUsed: string
+}
+
+export const repay = async ({
+  signer,
+  user,
+  asset,
+  amount, // "max" o monto humano ("100")
+  interestRateMode, // 1 = Stable, 2 = Variable
+  network,
+  onStateChange,
+}: {
+  signer: Signer
+  user: string
+  asset: string
+  amount: string
+  interestRateMode: 1 | 2
+  network: Network
+  onStateChange?: (action: string, state: TxState, info?: string) => void
+}): Promise<RepayResult> => {
+  /* ---------------- VALIDACIONES ---------------- */
+
+  if (!signer) throw new Error("Signer is required")
+  if (!user || !isAddress(user)) throw new Error("Invalid user address")
+  if (!asset || !isAddress(asset)) throw new Error("Invalid asset address")
+  if (!amount) throw new Error("Amount is required")
+  if (![1, 2].includes(interestRateMode)) {
+    throw new Error("Invalid interestRateMode")
+  }
+
+  try {
+    const pool = getPool(signer, network)
+    const poolAddress = await pool.getAddress()
+
+    console.log("asset", asset)
+    console.log("amount", amount)
+    console.log("interestRateMode", interestRateMode)
+
+    /* ---------------- MONTO ---------------- */
+
+    let amountInWei: bigint
+
+    if (amount === "max") {
+      // uint256.max = pagar toda la deuda
+      amountInWei = BigInt(
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      )
+    } else {
+      if (parseFloat(amount) <= 0) {
+        throw new Error("Invalid repay amount")
+      }
+
+      const erc20 = new Contract(asset, ERC20_ABI, signer)
+      const decimals = await erc20.decimals()
+
+      amountInWei = parseUnits(amount, decimals)
+
+      console.log("amountInWei", amountInWei)
+    }
+
+    /* ---------------- APPROVE ---------------- */
+
+    // Para repay SIEMPRE se requiere approve
+    await ensureApprove({
+      token: asset,
+      owner: user,
+      spender: poolAddress,
+      amount: amountInWei,
+      signer,
+      onStateChange,
+    })
+
+    /* ---------------- EJECUCIÓN ---------------- */
+
+    const tx = await handleTx(
+      pool.repay(
+        asset,
+        amountInWei,
+        interestRateMode,
+        user
+      ),
+      "Repay",
+      onStateChange
+    )
+
+    const receipt = await tx.wait()
+
+    return {
+      success: true,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+    }
+  } catch (error: any) {
+    /* ---------------- ERRORES COMUNES ---------------- */
+
+    if (error.message?.includes("NO_DEBT")) {
+      throw new Error("No outstanding debt to repay")
+    }
+
+    if (error.code === 4001) {
+      throw new Error("Transaction rejected by user")
+    }
+
+    if (error.code === "INSUFFICIENT_FUNDS") {
+      throw new Error("Insufficient funds for gas or repay amount")
+    }
+
+    throw new Error(`Repay failed: ${error.message || error}`)
+  }
+}

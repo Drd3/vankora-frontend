@@ -4,6 +4,7 @@ import { Paper } from "@/components/ui/paper"
 import { UserMarketState } from "@/subgraphs/market-user-state"
 import { LayoutDashboard } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { formatTokenBalance } from "@/lib/utils"
 
 const APYDesc= {
     title: "¿Qué es el Interes anual (APY)?",
@@ -39,7 +40,7 @@ const AaveOverview = ({ userState }: Props) => {
                             <Skeleton className="h-7 w-32" />
                         ) : (
                             <div className="text-2xl font-bold">
-                                ${parseFloat(userState.netWorth).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ${formatTokenBalance(parseFloat(userState.netWorth))}
                             </div>
                         )}
                     </div>
@@ -65,7 +66,7 @@ const AaveOverview = ({ userState }: Props) => {
                     </div>
 
                     {/* Projected Earnings */}
-                    <div className="space-y-1 md:text-right">
+                    {/* <div className="space-y-1 md:text-right">
                         <div className="text-sm text-gray-600">
                             Ganancia proyectada
                         </div>
@@ -76,7 +77,7 @@ const AaveOverview = ({ userState }: Props) => {
                                 ${(parseFloat(userState.netWorth) * (parseFloat(userState.netAPY?.value?.toString() || '0') / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                         )}
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Collateral and borrows bar */}

@@ -2,6 +2,7 @@ import { MoveRight } from "lucide-react";
 import { Paper } from "../paper"
 import { PredictionBar } from "../prediction-bar";
 import { useMemo } from "react";
+import { formatTokenBalance } from "@/lib/utils";
 
 interface CollateralPredictionProps {
     netWorth: number;
@@ -19,9 +20,13 @@ const CollateralPrediction = ({
             ? netWorth + amountInUsd 
             : netWorth - amountInUsd;
     }, [netWorth, amountInUsd, operation]);
-
+    console.log('netWorth', netWorth);
+    console.log('amountInUsd', amountInUsd);
+    console.log('newAmount', newAmount);
     const isIncrease = newAmount >= netWorth;
     const operationSymbol = operation === 'add' ? '+' : '-';
+
+    const maxValue = Math.max(netWorth, newAmount)
 
     return (
         <Paper elevation="sm" className="p-4">
@@ -43,13 +48,14 @@ const CollateralPrediction = ({
             </div>
             <div className="mt-2">
                 <div className="text-xs text-gray-500 mb-1">
-                    {operation === 'add' ? 'Añadiendo' : 'Retirando'}: ${Math.abs(amountInUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                    {operation === 'add' ? 'Añadiendo' : 'Retirando'}: ${ formatTokenBalance(Math.abs(amountInUsd))} USD
                 </div>
                 <PredictionBar
                     showLabel={false}
                     oldValue={netWorth} 
                     newValue={newAmount} 
                     color="bg-[#F6A901]"
+                    max={maxValue}
                 />
             </div>
         </Paper>

@@ -7,14 +7,15 @@ import { ArrowLeft, Loader2, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { BrowserProvider, ethers } from "ethers"
 import { useAccount, useChainId, useWalletClient } from "wagmi"
-import { supply, TxState, withdraw } from "@/services/aave-pool-contract";
+import { TxState, repay, getAssetBalance } from "@/services/aave-pool-contract";
 import { useAave } from "@/contexts/aave-context"
 import { fetchUsdExchangeRates } from "@/subgraphs/aave-exchange-rates"
 import { AAVE_V3_ADDRESSES } from "@/addresses/addresses"
-import { convertCurrency } from "@/lib/utils"
+import { convertCurrency, formatTokenBalance } from "@/lib/utils"
 import { UserBorrow } from "@/types/aave"
 import CollateralPrediction from "@/components/ui/prediction-cards/collateral-prediction"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import BorrowPrediction from "@/components/ui/prediction-cards/borrow-prediction"
 
 const TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
   base: {
@@ -45,6 +46,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
     const [amount, setAmount] = useState(0);
     const [amountInUsd, setAmountInUsd] = useState(0); 
     const [exchangeRate, setExchangeRate] = useState(0);
+    const [walletTokenBalance, setWalletTokenBalance] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
     const getTokenAddress = () => {
@@ -82,29 +84,48 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
         getExchangeRate();
     }, [])
 
+    // Obtener balance del token en la wallet del usuario
+    useEffect(() => {
+        const fetchWalletBalance = async () => {
+            if (!provider || !address) return
+            try {
+                const balanceStr = await getAssetBalance(getTokenAddress(), address, provider)
+                setWalletTokenBalance(parseFloat(balanceStr))
+            } catch (error) {
+                console.error("Error getting wallet token balance:", error)
+                setWalletTokenBalance(null)
+            }
+        }
 
-    const handleWithdraw = async () => {
+        fetchWalletBalance()
+    }, [provider, address])
+
+    const handleRepayWithWallet = async () => {
         if (!address || !signer) return
         if (!amount || Number(amount) <= 0) return
+
         // 1) Cambiamos al paso de confirmación ANTES de empezar la tx
         goToNextStep()
+
         try {
             // Limpiar cualquier estado anterior
             updateData("txStatus", null)
             updateData("txResult", null)
-            
-            const result = await withdraw({
+
+            const result = await repay({
                 signer,
+                user: address,
                 asset: getTokenAddress(),
                 amount: amount.toString(),
-                user: address,
+                // Asumimos tasa variable (2). Si tienes el modo en `asset`, puedes sustituirlo aquí.
+                interestRateMode: 2,
                 network: "base",
                 onStateChange: (action, state, info) => {
                     // 2) El onStateChange actualiza el estado de la transacción
                     updateData("txStatus", { action, state, info })
                 },
             })
-            
+
             // 3) Cuando termina, guardamos el resultado final
             updateData("txResult", {
                 transactionHash: result.transactionHash,
@@ -115,18 +136,17 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                 selectedAmount: {
                     value: amount,
                     currency: asset.currency.symbol,
-                }
+                },
             })
-            // })
         } catch (error) {
-            console.error("Error en el retiro:", error)
+            console.error("Error en el repago:", error)
             updateData("txStatus", {
-            action: "Withdraw",
-            state: "Error" as TxState,
-            info: error instanceof Error ? error.message : "Unknown error",
+                action: "Repay",
+                state: "Error" as TxState,
+                info: error instanceof Error ? error.message : "Unknown error",
             })
         }
-        }
+    }
 
     const handleAmountChange = (value: number) => {
         setAmount(value);
@@ -146,7 +166,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                 <Button variant="ghost" className="ml-auto" onClick={closeModal}><X className="text-black" /></Button>
             </CardHeader>
             <CardContent className="flex gap-4">
-                <Tabs className="w-full">
+                <Tabs className="w-full" defaultValue="wallet">
                     <TabsList className="w-full">
                         <TabsTrigger value="wallet">Usar wallet</TabsTrigger>
                         <TabsTrigger value="collateral">Usar colateral</TabsTrigger>
@@ -155,23 +175,33 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                         <div className="space-y-4 w-full">
                             <p className="max-w-[400px] text-gray-600">Paga total o parcialmente la deuda de los préstamos que hayas solicitado.</p>
                             <div className="mt-4">
-                                <label className="text-sm text-gray-600">Retiraras en:</label>
+                                <label className="text-sm text-gray-600">Tu deuda total:</label>
                                 <div className="px-4 py-2 border rounded-md flex items-center gap-2 w-[fit-content]">
                                     <img className="w-6 h-6 rounded-full" src={asset.currency.imageUrl} alt={asset.currency.name} />
-                                    {asset.currency.name}
+                                    ${formatTokenBalance(parseFloat(asset.debt.amount.value))} {asset.currency.symbol}
                                 </div>
                             </div>
                             <div>
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm">Selecciona la cantidad</label>
-                                    <div className="text-sm">
-                                        Tu deuda total: {parseFloat(asset.debt.amount.value).toFixed(3)} {asset.currency.symbol}
-                                    </div>
+                                    {walletTokenBalance !== null && walletTokenBalance <= 0 ? (
+                                        <div className="text-sm text-red-500">
+                                            No tienes balance de este token en tu wallet
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm">
+                                            Tu balance disponible: ${formatTokenBalance(walletTokenBalance ?? 0)} {asset.currency.symbol}
+                                        </div>
+                                    )}
                                 </div>
                                 <AmountInput
                                     className="max-w-[550px]"
                                     value={amount}
-                                    maxValue={parseFloat(asset.debt.amount.value)}
+                                    // No permitir más que la deuda ni más que el balance en wallet
+                                    maxValue={Math.min(
+                                        parseFloat(asset.debt.amount.value),
+                                        walletTokenBalance ?? Infinity
+                                    )}
                                     onChange={(value) => handleAmountChange(value)}
                                 />
                                 <Button 
@@ -179,7 +209,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                                     size="lg" 
                                     className="ml-auto mt-2"
                                     disabled={!amount || Number(amount) <= 0 || isLoading}
-                                    onClick={handleWithdraw}
+                                    onClick={handleRepayWithWallet}
                                 >
                                     {isLoading ? (
                                         <>
@@ -187,7 +217,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                                             Procesando...
                                         </>
                                     ) : (
-                                        "Retirar"
+                                        "Pagar deuda"
                                     )}
                                 </Button>
                             </div>
@@ -207,7 +237,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm">Selecciona la cantidad</label>
                                     <div className="text-sm">
-                                        Tu deuda total: {parseFloat(asset.debt.amount.value).toFixed(3)} {asset.currency.symbol}
+                                        Tu deuda total: {formatTokenBalance(parseFloat(asset.debt.amount.value))} {asset.currency.symbol}
                                     </div>
                                 </div>
                                 <AmountInput
@@ -233,7 +263,9 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                                     size="lg" 
                                     className="ml-auto mt-2"
                                     disabled={!amount || Number(amount) <= 0 || isLoading}
-                                    onClick={handleWithdraw}
+                                    onClick={() => {
+                                        // TODO: Implement withdraw with wallet
+                                    }}
                                 >
                                     {isLoading ? (
                                         <>
@@ -254,9 +286,10 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                         Estos cambios se realizaran:
                     </div>
                     {userState && (
-                        <CollateralPrediction 
-                            netWorth={parseFloat(userState.netWorth)} 
-                            amountInUsd={amountInUsd} 
+                        <BorrowPrediction 
+                            totalBorrowed={parseFloat(userState.totalDebtBase)}
+                            newBorrowed={amountInUsd}
+                            totalCollateral={parseFloat(userState.totalCollateralBase)}
                             operation="subtract"
                         />
                     )}

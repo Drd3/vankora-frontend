@@ -1,6 +1,7 @@
 import { useWizardContext, Wizard, WizardStep } from "@/components/ui/wizard"
 import { UserBorrow } from "@/types/aave";
 import RepayForm from "./repay-form";
+import RepayConfirmationProcess from "./repay-confirmation-process";
 
 interface props {
     open: boolean;
@@ -16,6 +17,11 @@ const RepayProcess = ({open, onOpenChange, asset}: props) => {
             id: "repay",
             title: "Reembolsar",
             content: <RepayForm asset={asset} />
+        },
+        {
+            id: "confirmation",
+            title: "Confirmación",
+            content: <RepayConfirmationProcess />
         }
     ]
 

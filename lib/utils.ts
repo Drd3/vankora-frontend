@@ -32,3 +32,10 @@ export function convertCurrency(
   
   return Math.round(result * factor) / factor;
 }
+
+
+export function formatTokenBalance(value: number) {
+    if (value < 0.001) return value.toFixed(6);
+    if (value < 1) return value.toFixed(4);
+    return value.toFixed(2);
+}
