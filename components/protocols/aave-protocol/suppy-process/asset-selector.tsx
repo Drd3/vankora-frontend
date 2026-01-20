@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { useWizardContext } from "@/components/ui/wizard"
 import { Skeleton } from "@/components/ui/skeleton"
 import { evmAddress, chainId } from "@aave/react";
+import { X } from "lucide-react"
 
 
 const marketSuppliesRequest = {
@@ -27,7 +28,7 @@ const AssetSelector = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [assets, setAssets] = useState<MarketSupply[]>([])
     const [showbalance0, setShowBalance0] = useState(false)
-    const { goToNextStep, setData } = useWizardContext()
+    const { goToNextStep, setData, closeModal } = useWizardContext()
 
 
     useEffect(() => {
@@ -84,8 +85,9 @@ const AssetSelector = () => {
     
     return(
         <Card className="w-full w-[1000px]">
-            <CardHeader>
+            <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-lg font-semibold">Selecciona un activo</CardTitle>
+                <Button variant="ghost" onClick={closeModal}><X className="text-black" /></Button>
             </CardHeader>
             <CardContent className="overflow-y-auto h-[70vh]">
                 <div className="mb-4">

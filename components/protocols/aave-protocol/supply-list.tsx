@@ -6,7 +6,8 @@ import { fetchUserSupplies } from "@/subgraphs/user-supplies";
 import { UserSuppliesRequest, UserSupply } from "@/types/aave";
 import { BanknoteArrowUp } from "lucide-react";
 import { useEffect, useState } from "react";
-import SupplyProcess from "./supply-process";
+import SupplyProcess from "./suppy-process/supply-process";
+import WithdrawProcess from "./withdraw-process/withdraw-process";
 
 interface props {
     classname?: string 
@@ -29,6 +30,10 @@ const request: UserSuppliesRequest  = {
 
 const SupplyList = ({classname}: props) => {
     const [supplyList, setSupplyList] = useState<UserSupply[]>([])
+    const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+    const [selectedSupply, setSelectedSupply] = useState<UserSupply | null>(null);
+    
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -89,7 +94,7 @@ const SupplyList = ({classname}: props) => {
                 {/* data row */}
                 <div className="space-y-4">
                     {
-                    supplyList.map((supply, i) => {
+                    supplyList.map((supply : UserSupply, i) => {
 
                         function formatTokenBalance(value: number) {
                             console.log(supply.currency.name, supply.balance.amount.value)
@@ -114,7 +119,14 @@ const SupplyList = ({classname}: props) => {
                             )}
                             <div className="text-sm text-center">${formatTokenBalance(parseFloat(supply.balance.amount.value))}</div>
                             <div className="text-sm text-center">{supply.apy.formatted}%</div>
-                                <Button variant="secondary" size="sm">
+                                <Button 
+                                    variant="secondary" 
+                                    size="sm"
+                                    onClick={() => {
+                                        setSelectedSupply(supply);
+                                        setIsWithdrawModalOpen(true);
+                                    }}
+                                >
                                     Retirar
                                 </Button>
                             </div>
@@ -123,21 +135,31 @@ const SupplyList = ({classname}: props) => {
                     }
                 </div>
 
-              {/* Botón Depositar con Modal */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="default" size="lg" className="w-full">
+                {/* Botón Depositar con Modal */}
+                <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="w-full"
+                    onClick={() => setIsModalOpen(true)}
+                >
                     Depositar
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-transparent border-0 shadow-none w-[fit-content]">
-                    <DialogHeader className="hidden">
-                        <DialogTitle>Depositar</DialogTitle>
-                    </DialogHeader>
-                    <SupplyProcess />
-                </DialogContent>
-              </Dialog>
+                </Button>
             </div>
+            <SupplyProcess 
+                open={isModalOpen} 
+                onOpenChange={setIsModalOpen} 
+            />
+            
+            {selectedSupply && (
+                <WithdrawProcess 
+                    open={isWithdrawModalOpen} 
+                    onOpenChange={(open) => {
+                        setIsWithdrawModalOpen(open);
+                        if (!open) setSelectedSupply(null);
+                    }}
+                    asset={selectedSupply}
+                />
+            )}
         </Paper>
     )
 };

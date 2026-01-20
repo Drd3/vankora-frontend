@@ -4,8 +4,9 @@ import { useWizardContext } from "@/components/ui/wizard"
 import { TxState } from "@/services/aave-pool-contract"
 import { Check, CopyIcon, LoaderCircle } from "lucide-react"
 import { useEffect } from "react"
+import { toast } from "@/hooks/use-toast"
 
-const AssetConfirmationProcess = () => {
+const BorrowConfirmationProcess = () => {
     const { data, goToPreviousStep, closeModal } = useWizardContext()
     const txStatus = data.txStatus as
         | { action: string; state: TxState; info?: string }
@@ -27,17 +28,31 @@ const AssetConfirmationProcess = () => {
 
     useEffect(() => {
         if (isError) {
+            const errorMessage = txStatus?.info || "Ocurrió un error al procesar la transacción"
+            const isUserRejected = 
+                errorMessage.includes('user rejected') || 
+                errorMessage.includes('denied') ||
+                errorMessage.includes('cancel') ||
+                errorMessage.includes('4001') // Código de error estándar para rechazo de usuario en MetaMask
+
+            toast({
+                title: isUserRejected ? "Transacción cancelada" : "Error en la transacción",
+                description: isUserRejected 
+                    ? "Has cancelado la firma de la transacción" 
+                    : errorMessage,
+                variant: "destructive"
+            })
             goToPreviousStep()
         }
-    }, [isError])
+    }, [isError, txStatus?.info, goToPreviousStep])
 
     const getProgress = () => {
-    if (!txStatus) return 0
+        if (!txStatus) return 0
         switch (txStatus.state) {
             case "WaitingForConfirmation":
-            return 25
+                return 25
             case "Pending":
-            return 75
+            return 50
             case "Finished":
             return 100
             case "Error":
@@ -51,7 +66,7 @@ const AssetConfirmationProcess = () => {
     return (
         <Card className="w-[350px]">
             <CardHeader>
-                <CardTitle>Depositar a un activo</CardTitle>
+                <CardTitle>Pedir prestamo</CardTitle>
             </CardHeader>
             <CardContent>
                 {isFinished ? (
@@ -60,20 +75,20 @@ const AssetConfirmationProcess = () => {
                         <Check/>
                     </div>
                     <div className="text-center my-2">
-                        <h3 className="font-semibold">Colateral depositado correctamente</h3>
+                        <h3 className="font-semibold">Prestamo realizado correctamente</h3>
                         <a href={"https://basescan.org/tx/" + txHash} target="_blank" className="text-sm text-sky-600">Ver en Basescan</a>
                     </div>
                     <div className="grid grid-cols-[7fr_3fr] gap-y-1 items-center text-sm mt-4">
                         <div className="font-semibold">Tx Hash</div>
                         <div className="text-right flex items-center">{shortenedTxHash} <Button variant="ghost" size="icon" className="ml-2"><CopyIcon/></Button></div>
-                        <div className="font-semibold">Cantidad depositada</div>
+                        <div className="font-semibold">Cantidad prestada </div>
                         <div className="text-right w-full">$ {Number(txResult?.amount).toFixed(2)} {txResult?.symbol}</div>
                     </div>
 
                     {/* ACTIONS */}
                     <div className="flex items-center justify-center gap-2 mt-4 w-full bg-gray-100 rounded-md">
                         <Button className="flex-1" onClick={closeModal}>Finalizar</Button>
-                        <Button className="flex-1" variant="secondary">Pedir prestado</Button>
+                        <Button className="flex-1" variant="secondary">Apalancar</Button>
                     </div>
                 </div>
             ) : <div className="w-full space-y-4">
@@ -112,4 +127,4 @@ const AssetConfirmationProcess = () => {
     )
 }
 
-export default AssetConfirmationProcess
+export default BorrowConfirmationProcess

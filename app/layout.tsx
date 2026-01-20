@@ -7,6 +7,7 @@ import { Web3Provider } from "@/components/providers/web3-provider";
 import Navbar from "@/components/ui/navbar";
 import { client } from "@/client";
 import Aave from "@/components/providers/aave-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 
 const albertSans = Albert_Sans({
@@ -33,6 +34,7 @@ export default function RootLayout({
         >
             <Aave>
               <Web3Provider>
+                <Toaster />
                 <div className="w-full">
                   <Navbar />
                   <ExpandableSidebar/>

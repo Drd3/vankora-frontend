@@ -6,6 +6,8 @@ import { fetchUserSupplies } from "@/subgraphs/user-supplies";
 import { UserSuppliesRequest, UserSupply } from "@/types/aave";
 import { BanknoteArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
+import BorrowProcess from "./borrow-process/borrow-process";
+import RepayProcess from "./repay-process/replay-process";
 
 
 interface props {
@@ -28,6 +30,17 @@ const request: UserBorrowsRequest  = {
 
 const BorrowList = ({classname}: props) => {
     const [supplyList, setSupplyList] = useState<UserBorrow[]>([])
+    const [selectedBorrow, setSelectedBorrow] = useState<UserBorrow | null>(null)
+    const [openBorrowProcess, setOpenBorrowProcess] = useState(false)
+    const [openRepayProcess, setOpenRepayProcess] = useState(false)
+
+    const handleOpenBorrowProcess = () => {
+        setOpenBorrowProcess(true)
+    }
+
+    const handleCloseBorrowProcess = () => {
+        setOpenBorrowProcess(false)
+    }
 
     useEffect(() => {
         const fetchData = async () => {
@@ -88,10 +101,10 @@ const BorrowList = ({classname}: props) => {
                 {/* data row */}
                 <div className="space-y-4 hover:bg-gay-50">
                     {
-                    supplyList.map((supply, i) => {
+                    supplyList.map((borrow : UserBorrow, i) => {
 
                         function formatTokenDebt(value: number) {
-                            console.log(supply.currency.name, supply.debt.amount.value)
+                            console.log(borrow.currency.name, borrow.debt.amount.value)
                             if (value < 0.001) return value.toFixed(6);
                             if (value < 1) return value.toFixed(4);
                             return value.toFixed(2);
@@ -99,21 +112,27 @@ const BorrowList = ({classname}: props) => {
 
                         return(
                             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 items-center">
-                            {supply.currency.imageUrl && (
+                            {borrow.currency.imageUrl && (
                                 <div className="flex gap-1 items-center ">
                                     <img 
-                                        src={supply.currency.imageUrl} 
-                                        alt={supply.currency.symbol}
+                                        src={borrow.currency.imageUrl} 
+                                        alt={borrow.currency.symbol}
                                         className="w-6 h-6 rounded-full"
                                     />
                                     <div className="text-sm text-gray-700">
-                                        {supply.currency.symbol}
+                                        {borrow.currency.symbol}
                                     </div>
                                 </div>
                             )}
-                            <div className="text-sm text-center">${formatTokenDebt(parseFloat(supply.debt.amount.value))}</div>
-                            <div className="text-sm text-center">{supply.apy.formatted}%</div>
-                                <Button variant="secondary" size="sm">
+                            <div className="text-sm text-center">${formatTokenDebt(parseFloat(borrow.debt.amount.value))}</div>
+                            <div className="text-sm text-center">{borrow.apy.formatted}%</div>
+                                <Button 
+                                    variant="secondary" 
+                                    size="sm" onClick={() => {
+                                        setSelectedBorrow(borrow);
+                                        setOpenRepayProcess(true);
+                                    }}
+                                >
                                     Pagar
                                 </Button>
                             </div>
@@ -123,10 +142,16 @@ const BorrowList = ({classname}: props) => {
                 </div>
 
               {/* Botón Depositar */}
-              <Button variant="default" size="lg" className="w-full">
+              <Button variant="default" size="lg" className="w-full" onClick={handleOpenBorrowProcess}>
                 Pedir prestamo
               </Button>
             </div>
+            {
+                selectedBorrow && (
+                    <RepayProcess open={openRepayProcess} onOpenChange={setOpenRepayProcess} asset={selectedBorrow}/>
+                )
+            }
+            <BorrowProcess open={openBorrowProcess} onOpenChange={setOpenBorrowProcess}/>
         </Paper>
     )
 };

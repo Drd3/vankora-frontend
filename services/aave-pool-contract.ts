@@ -229,3 +229,195 @@ export const getATokenBalance = async (
   
   return formatUnits(balance, decimals)
 }
+
+
+
+type BorrowParams = {
+  signer: any;
+  asset: string;
+  amount: string; // en unidades humanas ("100")
+  interestRateMode: 1 | 2; // 1 = Stable, 2 = Variable
+  network: Network;
+  onBehalfOf?: string;
+  referralCode?: number;
+  handleTx: (txPromise: Promise<any>) => Promise<any>;
+  onStateChange?: (state: "idle" | "loading" | "success" | "error", error?: unknown) => void;
+};
+
+export async function borrow({
+  signer,
+  asset,
+  amount,
+  interestRateMode,
+  onBehalfOf,
+  referralCode = 0,
+  network= "base",
+  handleTx,
+  onStateChange
+}: BorrowParams) {
+  try {
+    onStateChange?.("loading");
+
+    /* ---------------- VALIDACIONES ---------------- */
+
+    if (!signer) throw new Error("Signer no disponible");
+
+    if (!isAddress(asset)) {
+      throw new Error("Asset address inválido");
+    }
+
+    console.log("asset", asset, "amount", amount, "interestRateMode", interestRateMode, "onBehalfOf", onBehalfOf, "referralCode", referralCode, "network", network)
+
+    const userAddress = onBehalfOf ?? (await signer.getAddress());
+
+    if (!isAddress(userAddress)) {
+      throw new Error("onBehalfOf inválido");
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      throw new Error("Amount inválido");
+    }
+
+    if (![1, 2].includes(interestRateMode)) {
+      throw new Error("interestRateMode inválido");
+    }
+
+    /* ---------------- PARSEO SEGURO ---------------- */
+
+    const erc20 = new Contract(asset, ERC20_ABI, signer)
+    const decimals = await erc20.decimals()
+
+    const parsedAmount = parseUnits(amount, decimals);
+    
+    console.log("decimals", decimals)
+
+    if (parsedAmount <= 0n) {
+      throw new Error("Amount parseado inválido");
+    }
+
+    /* ---------------- CONTRATO ---------------- */
+
+    const pool = new Contract(
+      AAVE_V3_POOL_ADDRESSES[network],
+      POOL_ABI,
+      signer
+    );
+
+    /* ---------------- EJECUCIÓN ---------------- */
+
+    const tx = await handleTx(
+      pool.borrow(
+        asset,
+        parsedAmount,
+        interestRateMode,
+        referralCode,
+        userAddress
+      )
+    );
+
+    onStateChange?.("success");
+    return tx;
+
+  } catch (error: any) {
+    console.error("Borrow error:", error);
+
+    /* --------- MENSAJES DE ERROR COMUNES AAVE -------- */
+
+    if (error?.data === "0xf58f733a") {
+      // generic revert sin mensaje
+      error.message = "Borrow revertido: revisa collateral, health factor o liquidity";
+    }
+
+    onStateChange?.("error", error);
+    throw error;
+  }
+}
+
+
+
+interface WithdrawResult {
+  success: boolean
+  transactionHash: string
+  blockNumber: number
+  gasUsed: string
+}
+
+export const withdraw = async ({
+  signer,
+  user,
+  asset,
+  amount, // cantidad en formato humano ("100") o "max"
+  network,
+  onStateChange,
+}: {
+  signer: Signer
+  user: string
+  asset: string
+  amount: string // "max" o número en unidades humanas
+  network: Network
+  onStateChange?: (action: string, state: TxState, info?: string) => void
+}): Promise<WithdrawResult> => {
+  /* ---------------- VALIDACIONES ---------------- */
+
+  if (!signer) throw new Error("Signer is required")
+  if (!user || !isAddress(user)) throw new Error("Invalid user address")
+  if (!asset || !isAddress(asset)) throw new Error("Invalid asset address")
+  if (!amount) throw new Error("Amount is required")
+
+  try {
+    const pool = getPool(signer, network)
+
+    /* ---------------- MONTO ---------------- */
+
+    let amountInWei: bigint
+
+    if (amount === "max") {
+      // Aave usa uint256.max para retirar todo
+      amountInWei = BigInt(
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      )
+    } else {
+      if (parseFloat(amount) <= 0) {
+        throw new Error("Invalid withdraw amount")
+      }
+
+      const erc20 = new Contract(asset, ERC20_ABI, signer)
+      const decimals = await erc20.decimals()
+
+      amountInWei = parseUnits(amount, decimals)
+    }
+
+    /* ---------------- EJECUCIÓN ---------------- */
+
+    const tx = await handleTx(
+      pool.withdraw(asset, amountInWei, user),
+      "Withdraw",
+      onStateChange
+    )
+
+    const receipt = await tx.wait()
+
+    return {
+      success: true,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+    }
+  } catch (error: any) {
+    /* ---------------- ERRORES COMUNES ---------------- */
+
+    if (error.message?.includes("HEALTH_FACTOR")) {
+      throw new Error("Withdraw blocked: health factor too low")
+    }
+
+    if (error.code === 4001) {
+      throw new Error("Transaction rejected by user")
+    }
+
+    if (error.code === "INSUFFICIENT_FUNDS") {
+      throw new Error("Insufficient funds for gas")
+    }
+
+    throw new Error(`Withdraw failed: ${error.message || error}`)
+  }
+}

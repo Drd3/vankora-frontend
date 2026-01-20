@@ -5,7 +5,7 @@ import { TxState } from "@/services/aave-pool-contract"
 import { Check, CopyIcon, LoaderCircle } from "lucide-react"
 import { useEffect } from "react"
 
-const AssetConfirmationProcess = () => {
+const WithdrawConfirmationProcess = () => {
     const { data, goToPreviousStep, closeModal } = useWizardContext()
     const txStatus = data.txStatus as
         | { action: string; state: TxState; info?: string }
@@ -51,7 +51,7 @@ const AssetConfirmationProcess = () => {
     return (
         <Card className="w-[350px]">
             <CardHeader>
-                <CardTitle>Depositar a un activo</CardTitle>
+                <CardTitle>Retirar una activo</CardTitle>
             </CardHeader>
             <CardContent>
                 {isFinished ? (
@@ -66,7 +66,7 @@ const AssetConfirmationProcess = () => {
                     <div className="grid grid-cols-[7fr_3fr] gap-y-1 items-center text-sm mt-4">
                         <div className="font-semibold">Tx Hash</div>
                         <div className="text-right flex items-center">{shortenedTxHash} <Button variant="ghost" size="icon" className="ml-2"><CopyIcon/></Button></div>
-                        <div className="font-semibold">Cantidad depositada</div>
+                        <div className="font-semibold">Cantidad retirada</div>
                         <div className="text-right w-full">$ {Number(txResult?.amount).toFixed(2)} {txResult?.symbol}</div>
                     </div>
 
@@ -112,4 +112,4 @@ const AssetConfirmationProcess = () => {
     )
 }
 
-export default AssetConfirmationProcess
+export default WithdrawConfirmationProcess

@@ -1,7 +1,12 @@
 import { Wizard, WizardStep } from "@/components/ui/wizard"
-import AssetSelector from "./suppy-process/asset-selector"
-import SupplyForm from "./suppy-process/supply-form"
-import AssetConfirmationProcess from "./suppy-process/asset-confirmation-process"
+import AssetSelector from "./asset-selector"
+import SupplyForm from "./supply-form"
+import AssetConfirmationProcess from "./asset-confirmation-process"
+
+interface props {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}
 
 const steps: WizardStep[] = [
     {
@@ -21,18 +26,21 @@ const steps: WizardStep[] = [
     }
 ]
 
-const SupplyProccess = () => {
+const SupplyProccess = ({open, onOpenChange}: props) => {
 
-
-    
     return(
         <Wizard 
+            asModal={true}
+            unstyledModal={true}
             steps={steps} 
             showProgress={false} 
             className="w-full"
+            open={open}
+            onOpenChange={onOpenChange}
             onComplete={(data) => console.log(data)}
             hideTitle={true}
             withoutCard={true}
+            resetOnClose={true}
             onStepChange={(stepIndex, data) => console.log(stepIndex, data)}
         />
             
