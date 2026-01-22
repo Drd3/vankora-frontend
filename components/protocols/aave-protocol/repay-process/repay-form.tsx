@@ -14,9 +14,6 @@ import { AAVE_V3_ADDRESSES } from "@/addresses/addresses"
 import { convertCurrency, formatTokenBalance } from "@/lib/utils"
 import { UserBorrow } from "@/types/aave"
 import CollateralPrediction from "@/components/ui/prediction-cards/collateral-prediction"
-import { WalletTab } from "./tabs/wallet-tab"
-import { CollateralTab } from "./tabs/collateral-tab"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import BorrowPrediction from "@/components/ui/prediction-cards/borrow-prediction"
 import { AssetSelector } from "../asset-selector"
 
@@ -103,45 +100,6 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
         fetchWalletBalance()
     }, [provider, address])
 
-    const handleRepayWithAToken = async () => {
-        if (!address || !signer) return
-        if (!amount || Number(amount) <= 0) return
-
-        // Cambiamos al paso de confirmación ANTES de empezar la tx
-        goToNextStep()
-
-        try {
-            // Limpiar cualquier estado anterior
-            updateData("txStatus", null)
-            updateData("txResult", null)
-
-            const result = await repayWithATokens({
-                signer,
-                user: address,
-                asset: getTokenAddress(),
-                amount: amount.toString(),
-                network: "base",
-                onStateChange: (action, state, info) => {
-                    // Actualiza el estado de la transacción
-                    updateData("txStatus", { action, state, info })
-                }
-            })
-
-            // Actualizar el estado con el resultado
-            updateData("txResult", result)
-            console.log("Repay with aToken successful:", result)
-            
-            // Aquí podrías actualizar el estado de la UI o mostrar un mensaje de éxito
-        } catch (error) {
-            console.error("Error in repay with aToken:", error)
-            updateData("txStatus", { 
-                action: "repayWithAToken", 
-                state: "Error", 
-                info: error instanceof Error ? error.message : "Unknown error" 
-            })
-        }
-    }
-
     const handleRepayWithWallet = async () => {
         if (!address || !signer) return
         if (!amount || Number(amount) <= 0) return
@@ -208,39 +166,62 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                 <Button variant="ghost" className="ml-auto" onClick={closeModal}><X className="text-black" /></Button>
             </CardHeader>
             <CardContent className="flex gap-4">
-                <Tabs className="w-full" defaultValue="wallet">
-                    <TabsList className="w-full">
-                        <TabsTrigger value="wallet">Usar wallet</TabsTrigger>
-                        <TabsTrigger value="collateral">Usar colateral</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="wallet">
-                        <WalletTab
-                            asset={asset}
-                            walletTokenBalance={walletTokenBalance}
-                            formatTokenBalance={formatTokenBalance}
-                            onSuccess={() => {
-                                // Handle success if needed
-                            }}
-                            onError={(error) => {
-                                console.error("Error in WalletTab:", error);
-                            }}
+                <div className="space-y-4 w-full">
+                    <p className="max-w-[400px] text-gray-600">
+                        Paga total o parcialmente la deuda de los préstamos que hayas solicitado.
+                    </p>
+                    <div className="mt-4">
+                        <label className="text-sm text-gray-600">Tu deuda total:</label>
+                        <div className="px-4 py-2 border rounded-md flex items-center gap-2 w-[fit-content]">
+                            <img
+                                className="w-6 h-6 rounded-full"
+                                src={asset.currency.imageUrl}
+                                alt={asset.currency.name}
+                            />
+                            ${formatTokenBalance(parseFloat(asset.debt.amount.value))} {asset.currency.symbol}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm">Selecciona la cantidad</label>
+                            {walletTokenBalance !== null && walletTokenBalance <= 0 ? (
+                                <div className="text-sm text-red-500">
+                                    No tienes balance de este token en tu wallet
+                                </div>
+                            ) : (
+                                <div className="text-sm">
+                                    Tu balance disponible: ${formatTokenBalance(walletTokenBalance ?? 0)} {asset.currency.symbol}
+                                </div>
+                            )}
+                        </div>
+                        <AmountInput
+                            className="max-w-[550px]"
+                            value={amount}
+                            maxValue={Math.min(
+                                parseFloat(asset.debt.amount.value),
+                                walletTokenBalance ?? Infinity
+                            )}
+                            onChange={handleAmountChange}
                         />
-                    </TabsContent>
-                    <TabsContent value="collateral">
-                        <CollateralTab
-                            asset={asset}
-                            supplyList={supplyList || []}
-                            formatTokenBalance={formatTokenBalance}
-                            onSuccess={() => {
-                                // Handle success if needed
-                            }}
-                            onError={(error) => {
-                                console.error("Error in CollateralTab:", error);
-                            }}
-                        />
-                    </TabsContent>
-                </Tabs>
-                
+                        <Button
+                            variant="default"
+                            size="lg"
+                            className="ml-auto mt-2"
+                            disabled={!amount || Number(amount) <= 0 || isLoading}
+                            onClick={handleRepayWithWallet}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Procesando...
+                                </>
+                            ) : (
+                                "Pagar deuda"
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
                 <div className="w-full w-[700px] space-y-4">
                     <div>
                         Estos cambios se realizaran:

@@ -14,8 +14,8 @@ import { fetchUsdExchangeRates } from "@/subgraphs/aave-exchange-rates"
 import { AAVE_V3_ADDRESSES } from "@/addresses/addresses"
 import { convertCurrency } from "@/lib/utils"
 import CollateralPrediction from "@/components/ui/prediction-cards/collateral-prediction"
-import BorrowPrediction from "@/components/ui/prediction-cards/borrow-prediction"
 import { toast } from "@/hooks/use-toast"
+import BorrowPrediction from "@/components/ui/prediction-cards/borrow-prediction"
 
 const TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
   base: {
@@ -207,6 +207,8 @@ const BorrowForm = () => {
                         <BorrowPrediction 
                             totalBorrowed={parseFloat(userState.totalDebtBase)} 
                             newBorrowed={amountInUsd} 
+                            totalCollateral={parseFloat(userState.totalCollateralBase)}
+                            operation="add"
                         />
                     )}
                     <Paper elevation="sm" className="p-4">

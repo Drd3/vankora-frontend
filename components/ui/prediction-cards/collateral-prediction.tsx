@@ -20,9 +20,6 @@ const CollateralPrediction = ({
             ? netWorth + amountInUsd 
             : netWorth - amountInUsd;
     }, [netWorth, amountInUsd, operation]);
-    console.log('netWorth', netWorth);
-    console.log('amountInUsd', amountInUsd);
-    console.log('newAmount', newAmount);
     const isIncrease = newAmount >= netWorth;
     const operationSymbol = operation === 'add' ? '+' : '-';
 

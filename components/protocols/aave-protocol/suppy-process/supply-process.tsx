@@ -6,6 +6,7 @@ import AssetConfirmationProcess from "./asset-confirmation-process"
 interface props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onClose: () => void;
 }
 
 const steps: WizardStep[] = [
@@ -26,7 +27,17 @@ const steps: WizardStep[] = [
     }
 ]
 
-const SupplyProccess = ({open, onOpenChange}: props) => {
+const SupplyProccess = ({open, onOpenChange, onClose}: props) => {
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            onOpenChange(open);
+            onClose();
+        }
+        else {
+            onOpenChange(open);
+        }
+    }
 
     return(
         <Wizard 
@@ -36,7 +47,7 @@ const SupplyProccess = ({open, onOpenChange}: props) => {
             showProgress={false} 
             className="w-full"
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={handleOpenChange}
             onComplete={(data) => console.log(data)}
             hideTitle={true}
             withoutCard={true}

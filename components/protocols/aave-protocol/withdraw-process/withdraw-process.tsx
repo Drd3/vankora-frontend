@@ -45,6 +45,7 @@ const WithdrawProcess = ({open, onOpenChange, asset}: props) => {
                 }
                 console.log(stepIndex, data);
             }}
+            closeOnEscape={true}
             initialData={{ asset }}
         />
             

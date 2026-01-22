@@ -29,6 +29,7 @@ export type MarketSupply = {
       symbol: string;
       imageUrl: string;
       decimals: number;
+      address: string;
     };
     userState: {
       balance: {
@@ -83,6 +84,7 @@ const MARKET_SUPPLIES_QUERY = `
           symbol
           imageUrl
           decimals
+          address
         }
         userState {
           balance {

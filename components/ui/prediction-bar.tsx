@@ -44,7 +44,7 @@ export function PredictionBar({
       <div className={cn("relative w-full rounded-full overflow-hidden h-4", backgroundColor)}>
         {/* Barra del valor anterior */}
         <div
-          className={cn("absolute top-0 left-0 h-full transition-all duration-500 ease-in-out", color)}
+          className={cn("absolute top-0 left-0 h-full transition-all duration-1000 ease-out", color)}
           style={{ width: `${oldPercentage}%` }}
         />
 
@@ -52,7 +52,7 @@ export function PredictionBar({
         {!isEqual && (
           <div
             className={cn(
-              "absolute top-0 h-full transition-all duration-500 ease-in-out",
+              "absolute top-0 h-full transition-all duration-1000 ease-out",
               hasIncreased ? "bg-green-300" : "bg-red-300"
             )}
             style={{

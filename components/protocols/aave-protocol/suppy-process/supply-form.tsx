@@ -71,7 +71,21 @@ const SupplyForm = () => {
     useEffect(() => {
         const getExchangeRate = async () => {
             try{
-                const exchangeRate = await fetchUsdExchangeRates("https://api.v3.aave.com/graphql", {chainId: chainId.toString(), market: AAVE_V3_ADDRESSES.POOL_ADDRESSES_PROVIDER, underlyingTokens:  [getTokenAddress()]})
+                const tokenAddress = getTokenAddress();
+
+                // Evitar llamar al subgraph si no tenemos una EVM address válida
+                if (!tokenAddress || !tokenAddress.startsWith("0x")) {
+                    return;
+                }
+
+                const exchangeRate = await fetchUsdExchangeRates(
+                    "https://api.v3.aave.com/graphql",
+                    {
+                        chainId: chainId.toString(),
+                        market: AAVE_V3_ADDRESSES.POOL_ADDRESSES_PROVIDER,
+                        underlyingTokens: [tokenAddress],
+                    }
+                );
                 console.log("exchangeRate", exchangeRate)
                 setExchangeRate(exchangeRate[0].rate);
             } catch (error) {
@@ -80,7 +94,6 @@ const SupplyForm = () => {
         }
         getExchangeRate();
     }, [])
-
 
     const handleSupply = async () => {
         if (!address || !signer) return
@@ -126,6 +139,8 @@ const SupplyForm = () => {
 
     const handleAmountChange = (value: number) => {
         setAmount(value);
+        console.log("value", value)
+        console.log("exchangeRate", exchangeRate)
         const amountInUsd = convertCurrency(value, exchangeRate);
         setAmountInUsd(amountInUsd);
     };

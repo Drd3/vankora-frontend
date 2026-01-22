@@ -175,7 +175,8 @@ export function CollateralTab({
         if (rates && rates.length >= 2) {
           const debtRate = parseFloat(rates[0].rate.toString());
           const collateralRate = parseFloat(rates[1].rate.toString());
-          const exchangeRate = debtRate > 0 ? collateralRate / debtRate : 0;
+          // Exchange rate: 1 debt token = X collateral tokens
+          const exchangeRate = collateralRate > 0 ? debtRate / collateralRate : 0;
           
           setExchangeRates({
             debtAssetRate: debtRate,
@@ -252,7 +253,7 @@ export function CollateralTab({
               </div>
               {amount > 0 && (
                 <div className="text-sm font-medium text-gray-700 mt-1">
-                  {amount.toFixed(6)} {asset.currency.symbol} = {equivalentAmount.toFixed(6)} {selectedAsset.currency.symbol}
+                  {amount.toFixed(6)} {asset.currency.symbol} = ${equivalentAmount.toFixed(10)} {selectedAsset.currency.symbol}
                 </div>
               )}
             </div>
