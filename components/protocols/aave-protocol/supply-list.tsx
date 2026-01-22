@@ -8,48 +8,42 @@ import { BanknoteArrowUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import SupplyProcess from "./suppy-process/supply-process";
 import WithdrawProcess from "./withdraw-process/withdraw-process";
+import { useAave } from "@/contexts/aave-context";
 
 interface props {
     classname?: string 
 }
 
-const request: UserSuppliesRequest  = {
-  user: "0xC69A8ACfd379fadc048e40C0075eCf85E395813d",
-  markets: [
-    {
-      chainId: 8453,
-      address: "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"
-    }
-  ],
-  collateralsOnly: false,
-  orderBy: {
-    balance: "ASC"
-  }
-};
+
 
 
 const SupplyList = ({classname}: props) => {
-    const [supplyList, setSupplyList] = useState<UserSupply[]>([])
+     const { 
+        supplyList, 
+        isSupplyListLoading, 
+        refreshSupplyList 
+    } = useAave();
     const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
     const [selectedSupply, setSelectedSupply] = useState<UserSupply | null>(null);
     
     const [isModalOpen, setIsModalOpen] = useState(false)
 
     useEffect(() => {
-        const fetchData = async () => {
-            try{
-                const list = await fetchUserSupplies(request, "https://api.v3.aave.com/graphql");
-                console.log()
-                setSupplyList(list)
-            }catch(error)
-            {
-
+        const loadSupplyList = async () => {
+            try {
+                await refreshSupplyList();
+            } catch (error) {
+                console.error('Failed to load supply list:', error);
             }
         };
-    
-        fetchData();
-    },[])
+        
+        loadSupplyList();
+    }, []);
 
+    
+    if (isSupplyListLoading) {
+        return <div>Loading supplies...</div>;
+    }
 
     return (
         <Paper elevation={"md"} className={classname + " " + "border-[#F89A30]"}>
@@ -94,7 +88,7 @@ const SupplyList = ({classname}: props) => {
                 {/* data row */}
                 <div className="space-y-4">
                     {
-                    supplyList.map((supply : UserSupply, i) => {
+                    supplyList && supplyList.map((supply : UserSupply, i) => {
 
                         function formatTokenBalance(value: number) {
                             console.log(supply.currency.name, supply.balance.amount.value)

@@ -537,3 +537,72 @@ export const repay = async ({
     throw new Error(`Repay failed: ${error.message || error}`)
   }
 }
+
+export const repayWithATokens = async ({
+  signer,
+  user,
+  asset,
+  amount,
+  network,
+  onStateChange,
+}: {
+  signer: Signer
+  user: string
+  asset: string
+  amount: string
+  network: Network
+  onStateChange?: (action: string, state: TxState, info?: string) => void
+}): Promise<SupplyResult> => {
+  // Validaciones
+  if (!signer) throw new Error("Signer is required")
+  if (!user || !isAddress(user)) throw new Error("Invalid user address")
+  if (!asset || !isAddress(asset)) throw new Error("Invalid asset address")
+  if (!amount || parseFloat(amount) <= 0) throw new Error("Invalid amount")
+
+  try {
+    // Obtener pool
+    const pool = await getPool(signer, network)
+
+    // Obtener decimales del token
+    const erc20 = new Contract(asset, ERC20_ABI, signer)
+    const decimals = await erc20.decimals()
+    const amountInWei = parseUnits(amount, decimals)
+
+    // Ejecutar repayWithATokens usando handleTx
+    const tx = await handleTx(
+      pool.repayWithATokens(asset, amountInWei, 2), // 2 = variable
+      "RepayWithATokens",
+      onStateChange
+    )
+
+    const receipt = await tx.wait()
+
+    return {
+      success: true,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+    }
+  } catch (error: any) {
+    // Manejo de errores específicos
+    if (error.code === 4001) {
+      throw new Error("Transaction rejected by user")
+    }
+
+    if (
+      error.message?.includes("NO_DEBT_OF_SELECTED_TYPE") ||
+      error.message?.includes("NO_DEBT")
+    ) {
+      throw new Error("User has no debt of selected type")
+    }
+
+    if (
+      error.message?.includes("NOT_ENOUGH_AVAILABLE_USER_BALANCE") ||
+      error.message?.includes("INSUFFICIENT_ATOKEN_BALANCE")
+    ) {
+      throw new Error("Insufficient aToken balance to repay")
+    }
+
+    throw new Error(`RepayWithATokens failed: ${error.message || error}`)
+  }
+}

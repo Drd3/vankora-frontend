@@ -24,6 +24,12 @@ export type MarketBorrow = {
     isPaused: boolean;
     isFrozen: boolean;
     permitSupported: boolean;
+    aToken: {
+      address: string;
+      name: string;
+      symbol: string;
+      decimals: number;
+    };
     borrowInfo: {
       apy: {
         decimals: number;
@@ -89,6 +95,12 @@ const MARKET_BORROWS_QUERY = `
         isPaused
         isFrozen
         permitSupported
+        aToken {
+          address
+          name
+          symbol
+          decimals
+        }
         borrowInfo {
           apy {
             decimals

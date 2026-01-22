@@ -29,6 +29,12 @@ export interface UserSupply {
     symbol: string;
     decimals: number;
   };
+  aToken?: {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+  };
 }
 
 export interface UserBorrow {

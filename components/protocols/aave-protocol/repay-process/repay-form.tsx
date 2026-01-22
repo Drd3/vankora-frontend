@@ -4,18 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Paper } from "@/components/ui/paper"
 import { useWizardContext } from "@/components/ui/wizard"
 import { ArrowLeft, Loader2, X } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { BrowserProvider, ethers } from "ethers"
 import { useAccount, useChainId, useWalletClient } from "wagmi"
-import { TxState, repay, getAssetBalance } from "@/services/aave-pool-contract";
+import { TxState, repay, getAssetBalance, repayWithATokens } from "@/services/aave-pool-contract";
 import { useAave } from "@/contexts/aave-context"
 import { fetchUsdExchangeRates } from "@/subgraphs/aave-exchange-rates"
 import { AAVE_V3_ADDRESSES } from "@/addresses/addresses"
 import { convertCurrency, formatTokenBalance } from "@/lib/utils"
 import { UserBorrow } from "@/types/aave"
 import CollateralPrediction from "@/components/ui/prediction-cards/collateral-prediction"
+import { WalletTab } from "./tabs/wallet-tab"
+import { CollateralTab } from "./tabs/collateral-tab"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import BorrowPrediction from "@/components/ui/prediction-cards/borrow-prediction"
+import { AssetSelector } from "../asset-selector"
 
 const TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
   base: {
@@ -34,8 +37,7 @@ const TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
 const RepayForm = ({asset}: {asset: UserBorrow}) => {
     const { address } = useAccount();
     const chainId = useChainId();
-
-    const { userState } = useAave();
+    const { supplyList, userState } = useAave();
 
     const { goToPreviousStep, data, goToNextStep, updateData, closeModal } = useWizardContext()
     const { data: walletClient } = useWalletClient()
@@ -48,6 +50,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
     const [exchangeRate, setExchangeRate] = useState(0);
     const [walletTokenBalance, setWalletTokenBalance] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedAsset, setSelectedAsset] = useState<number>(0);
     
     const getTokenAddress = () => {
         if (!asset.currency?.symbol) return ""
@@ -100,11 +103,50 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
         fetchWalletBalance()
     }, [provider, address])
 
+    const handleRepayWithAToken = async () => {
+        if (!address || !signer) return
+        if (!amount || Number(amount) <= 0) return
+
+        // Cambiamos al paso de confirmación ANTES de empezar la tx
+        goToNextStep()
+
+        try {
+            // Limpiar cualquier estado anterior
+            updateData("txStatus", null)
+            updateData("txResult", null)
+
+            const result = await repayWithATokens({
+                signer,
+                user: address,
+                asset: getTokenAddress(),
+                amount: amount.toString(),
+                network: "base",
+                onStateChange: (action, state, info) => {
+                    // Actualiza el estado de la transacción
+                    updateData("txStatus", { action, state, info })
+                }
+            })
+
+            // Actualizar el estado con el resultado
+            updateData("txResult", result)
+            console.log("Repay with aToken successful:", result)
+            
+            // Aquí podrías actualizar el estado de la UI o mostrar un mensaje de éxito
+        } catch (error) {
+            console.error("Error in repay with aToken:", error)
+            updateData("txStatus", { 
+                action: "repayWithAToken", 
+                state: "Error", 
+                info: error instanceof Error ? error.message : "Unknown error" 
+            })
+        }
+    }
+
     const handleRepayWithWallet = async () => {
         if (!address || !signer) return
         if (!amount || Number(amount) <= 0) return
 
-        // 1) Cambiamos al paso de confirmación ANTES de empezar la tx
+        // Cambiamos al paso de confirmación ANTES de empezar la tx
         goToNextStep()
 
         try {
@@ -121,7 +163,7 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                 interestRateMode: 2,
                 network: "base",
                 onStateChange: (action, state, info) => {
-                    // 2) El onStateChange actualiza el estado de la transacción
+                    // Actualiza el estado de la transacción
                     updateData("txStatus", { action, state, info })
                 },
             })
@@ -172,112 +214,30 @@ const RepayForm = ({asset}: {asset: UserBorrow}) => {
                         <TabsTrigger value="collateral">Usar colateral</TabsTrigger>
                     </TabsList>
                     <TabsContent value="wallet">
-                        <div className="space-y-4 w-full">
-                            <p className="max-w-[400px] text-gray-600">Paga total o parcialmente la deuda de los préstamos que hayas solicitado.</p>
-                            <div className="mt-4">
-                                <label className="text-sm text-gray-600">Tu deuda total:</label>
-                                <div className="px-4 py-2 border rounded-md flex items-center gap-2 w-[fit-content]">
-                                    <img className="w-6 h-6 rounded-full" src={asset.currency.imageUrl} alt={asset.currency.name} />
-                                    ${formatTokenBalance(parseFloat(asset.debt.amount.value))} {asset.currency.symbol}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm">Selecciona la cantidad</label>
-                                    {walletTokenBalance !== null && walletTokenBalance <= 0 ? (
-                                        <div className="text-sm text-red-500">
-                                            No tienes balance de este token en tu wallet
-                                        </div>
-                                    ) : (
-                                        <div className="text-sm">
-                                            Tu balance disponible: ${formatTokenBalance(walletTokenBalance ?? 0)} {asset.currency.symbol}
-                                        </div>
-                                    )}
-                                </div>
-                                <AmountInput
-                                    className="max-w-[550px]"
-                                    value={amount}
-                                    // No permitir más que la deuda ni más que el balance en wallet
-                                    maxValue={Math.min(
-                                        parseFloat(asset.debt.amount.value),
-                                        walletTokenBalance ?? Infinity
-                                    )}
-                                    onChange={(value) => handleAmountChange(value)}
-                                />
-                                <Button 
-                                    variant="default" 
-                                    size="lg" 
-                                    className="ml-auto mt-2"
-                                    disabled={!amount || Number(amount) <= 0 || isLoading}
-                                    onClick={handleRepayWithWallet}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Procesando...
-                                        </>
-                                    ) : (
-                                        "Pagar deuda"
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
+                        <WalletTab
+                            asset={asset}
+                            walletTokenBalance={walletTokenBalance}
+                            formatTokenBalance={formatTokenBalance}
+                            onSuccess={() => {
+                                // Handle success if needed
+                            }}
+                            onError={(error) => {
+                                console.error("Error in WalletTab:", error);
+                            }}
+                        />
                     </TabsContent>
                     <TabsContent value="collateral">
-                        <div className="space-y-4 w-full">
-                            <p className="max-w-[400px] text-gray-600">Paga total o parcialmente la deuda de los préstamos que hayas solicitado.</p>
-                            <div className="mt-4">
-                                <label className="text-sm text-gray-600">Retiraras en:</label>
-                                <div className="px-4 py-2 border rounded-md flex items-center gap-2 w-[fit-content]">
-                                    <img className="w-6 h-6 rounded-full" src={asset.currency.imageUrl} alt={asset.currency.name} />
-                                    {asset.currency.name}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm">Selecciona la cantidad</label>
-                                    <div className="text-sm">
-                                        Tu deuda total: {formatTokenBalance(parseFloat(asset.debt.amount.value))} {asset.currency.symbol}
-                                    </div>
-                                </div>
-                                <AmountInput
-                                    className="max-w-[550px]"
-                                    value={amount}
-                                    maxValue={parseFloat(asset.debt.amount.value)}
-                                    onChange={(value) => handleAmountChange(value)}
-                                />
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm">Selecciona la cantidad</label>
-                                    <div className="text-sm">
-                                        Tu deuda total: {parseFloat(asset.debt.amount.value).toFixed(3)} {asset.currency.symbol}
-                                    </div>
-                                </div>
-                                <AmountInput
-                                    className="max-w-[550px]"
-                                    value={amount}
-                                    maxValue={parseFloat(asset.debt.amount.value)}
-                                    onChange={(value) => handleAmountChange(value)}
-                                />
-                                <Button 
-                                    variant="default" 
-                                    size="lg" 
-                                    className="ml-auto mt-2"
-                                    disabled={!amount || Number(amount) <= 0 || isLoading}
-                                    onClick={() => {
-                                        // TODO: Implement withdraw with wallet
-                                    }}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Procesando...
-                                        </>
-                                    ) : (
-                                        "Retirar"
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
+                        <CollateralTab
+                            asset={asset}
+                            supplyList={supplyList || []}
+                            formatTokenBalance={formatTokenBalance}
+                            onSuccess={() => {
+                                // Handle success if needed
+                            }}
+                            onError={(error) => {
+                                console.error("Error in CollateralTab:", error);
+                            }}
+                        />
                     </TabsContent>
                 </Tabs>
                 
